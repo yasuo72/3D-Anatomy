@@ -820,6 +820,7 @@ export function AnatomyApp() {
           setBpm={setBpm}
           onAddXP={addXP}
           totalXP={totalXP}
+          onAskAiAboutHotspot={askAiAboutHotspot}
           onClose={() => {
             setModal(null);
             setAiPrompt("");
@@ -874,6 +875,7 @@ function LearningModal({
   setBpm,
   onAddXP,
   totalXP,
+  onAskAiAboutHotspot,
   onClose,
 }: {
   type: Exclude<Modal, null>;
@@ -894,6 +896,7 @@ function LearningModal({
   setBpm: (bpm: number) => void;
   onAddXP: (xp: number) => void;
   totalXP: number;
+  onAskAiAboutHotspot?: (label: string, detail: string) => void;
   onClose: () => void;
 }) {
   const organName = organ.name;
@@ -1734,7 +1737,7 @@ function LearningModal({
                           <button onClick={() => audioSynth.speakText(`${spot.label}. ${spot.detail}`)} title="Listen to audio">
                             <Volume2 size={14} /> Listen
                           </button>
-                          <button onClick={() => askAiAboutHotspot(spot.label, spot.detail)} title="Ask Dr. Rohit AI">
+                          <button onClick={() => onAskAiAboutHotspot?.(spot.label, spot.detail)} title="Ask Dr. Rohit AI">
                             <Bot size={14} /> Ask AI
                           </button>
                         </div>
