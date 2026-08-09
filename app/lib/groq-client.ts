@@ -73,7 +73,7 @@ Format your answers with clean Markdown headings (###), bold text (**bold**), an
       throw new Error(`Groq API Error (${res.status}): ${err}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     return data.choices?.[0]?.message?.content || "No response received from Groq AI.";
   } catch (error: any) {
     console.error("Groq AI Call Error:", error);
@@ -115,7 +115,7 @@ Respond ONLY with a single JSON object without markdown fences, in this exact fo
       }),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
     const raw = data.choices?.[0]?.message?.content || "";
     const cleanJson = raw.replace(/```json/g, "").replace(/```/g, "").trim();
     return JSON.parse(cleanJson) as ClinicalCase;
