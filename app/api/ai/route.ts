@@ -3,8 +3,8 @@ import { askGroqTutor, generateClinicalCase } from "../../lib/groq-client";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { action, query, history, organContext, tone, organName } = body;
+    const body = (await req.json()) as Record<string, any>;
+    const { action, query, history, organContext, tone, organName } = body || {};
 
     if (action === "case-study") {
       const caseData = await generateClinicalCase(organName || "heart");
