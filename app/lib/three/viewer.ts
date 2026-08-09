@@ -681,7 +681,7 @@ export class AnatomyViewer {
 
   setDiseaseMode(enabled: boolean) {
     if (!this.organ) return;
-    this.organ.root.traverse((node) => {
+    this.organ.pivot.traverse((node) => {
       if ((node as THREE.Mesh).isMesh) {
         const mesh = node as THREE.Mesh;
         if (enabled) {
