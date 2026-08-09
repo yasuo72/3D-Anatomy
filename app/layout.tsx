@@ -1,16 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
-
-const sans = DM_Sans({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-const serif = Cormorant_Garamond({
-  variable: "--font-serif",
-  subsets: ["latin"],
-});
 
 const OG_IMAGE = {
   url: "/og.jpg",
@@ -19,21 +8,14 @@ const OG_IMAGE = {
   alt: "An anatomical heart specimen floating above a plinth, beside the Anatomy Atelier wordmark",
 };
 
-/**
- * Absolute URLs for og:image and friends. Resolved per host so a preview
- * deployment does not advertise another origin's assets:
- *   1. NEXT_PUBLIC_SITE_URL — explicit override, wins everywhere
- *   2. VERCEL_PROJECT_PRODUCTION_URL — the project's stable production domain
- *   3. the original Cloudflare/OpenAI host
- */
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "https://anatomy-atelier.openai.site");
+    : undefined);
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: "Anatomy Lab 3D — Developed by Rohit",
   description:
     "Explore medically detailed 3D organs — heart, brain, lungs, liver, kidneys, eye, intestine, pancreas, and skin — created by Rohit.",
@@ -76,10 +58,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${sans.variable} ${serif.variable}`}
-      >
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>

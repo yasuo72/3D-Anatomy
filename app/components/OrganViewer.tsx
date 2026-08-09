@@ -3,7 +3,6 @@ import {
   Box,
   CircleDashed,
   Eye,
-  EyeOff,
   Layers3,
   Maximize2,
   Minimize2,
@@ -28,9 +27,12 @@ type Props = {
   onAutoRotate: (enabled: boolean) => void;
   compare: boolean;
   onCompare: () => void;
+  diseaseMode?: boolean;
+  onDiseaseMode?: (enabled: boolean) => void;
+  bpm?: number;
 };
 
-export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompare }: Props) {
+export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompare, diseaseMode = false, onDiseaseMode, bpm = 72 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<AnatomyViewer | null>(null);
   const organRef = useRef(organ);
@@ -41,9 +43,10 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
   const [slowLoad, setSlowLoad] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
 
-  // New Interactive States
+  // Advanced Interactive Controls State
   const [opacity, setOpacity] = useState(1);
   const [dissection, setDissection] = useState(0);
+  const [sectionDepth, setSectionDepth] = useState(0);
   const [preset, setPreset] = useState<"clinical" | "dark-neon" | "xray" | "warm">("clinical");
   const [cinemaMode, setCinemaMode] = useState(false);
   const [audioMuted, setAudioMuted] = useState(true);
@@ -59,11 +62,11 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
     organRef.current = organ;
     // Ambient sound FX per organ
     if (!audioMuted) {
-      if (organ.id === "heart") audioSynth.playHeartbeat(72);
+      if (organ.id === "heart") audioSynth.playHeartbeat(bpm);
       else if (organ.id === "lungs") audioSynth.playBreathing();
       else audioSynth.stopAmbient();
     }
-  }, [organ, audioMuted]);
+  }, [organ, audioMuted, bpm]);
 
   useEffect(() => {
     autoRotateRef.current = autoRotate;
@@ -113,6 +116,7 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
   }, [organ]);
 
   useEffect(() => viewerRef.current?.setAutoRotate(autoRotate), [autoRotate]);
+  useEffect(() => viewerRef.current?.setDiseaseMode(diseaseMode), [diseaseMode]);
 
   const calloutRef = useCallback((node: HTMLDivElement | null) => {
     viewerRef.current?.attachCallout(node);
@@ -124,8 +128,13 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
     audioSynth.playClick();
     if (tool === "rotate") onAutoRotate(!autoRotate);
     if (tool === "zoom") viewer.zoom(-1);
+    if (tool === "disease") onDiseaseMode?.(!diseaseMode);
     if (tool === "isolate") setActiveTool(viewer.toggleIsolate() ? tool : null);
-    if (tool === "section") setActiveTool(viewer.toggleCrossSection() ? tool : null);
+    if (tool === "section") {
+      const enabled = viewer.toggleCrossSection();
+      setActiveTool(enabled ? tool : null);
+      if (enabled) setShowControls(true);
+    }
     if (tool === "layers") setActiveTool(viewer.toggleLayers() ? tool : null);
     if (tool === "xray") {
       setShowControls((prev) => !prev);
@@ -137,7 +146,7 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
       const muted = audioSynth.toggleMute();
       setAudioMuted(muted);
       if (!muted) {
-        if (organ.id === "heart") audioSynth.playHeartbeat(72);
+        if (organ.id === "heart") audioSynth.playHeartbeat(bpm);
         else if (organ.id === "lungs") audioSynth.playBreathing();
       }
     }
@@ -146,6 +155,7 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
       viewer.reset();
       setOpacity(1);
       setDissection(0);
+      setSectionDepth(0);
       setPreset("clinical");
       viewer.setOpacity(1);
       viewer.setExplosion(0);
@@ -165,6 +175,11 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
     viewerRef.current?.setExplosion(val);
   };
 
+  const handleSectionDepthChange = (val: number) => {
+    setSectionDepth(val);
+    viewerRef.current?.setCrossSectionDepth(val);
+  };
+
   const handlePresetChange = (nextPreset: "clinical" | "dark-neon" | "xray" | "warm") => {
     setPreset(nextPreset);
     viewerRef.current?.setEnvironmentPreset(nextPreset);
@@ -173,6 +188,7 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
   const tools = [
     { id: "rotate", label: "Rotate", icon: RotateCcw },
     { id: "zoom", label: "Zoom", icon: Search },
+    { id: "disease", label: diseaseMode ? "Healthy View" : "Disease Mode", icon: Sparkles },
     { id: "xray", label: "X-Ray / 3D Controls", icon: Eye },
     { id: "isolate", label: "Isolate", icon: CircleDashed },
     { id: "section", label: "Cross-section", icon: ScanLine },
@@ -189,14 +205,14 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
       <div ref={mountRef} className="three-mount" />
 
       {/* Live ECG Pulse Waveform HUD */}
-      <Ecghud organId={organ.id} organName={organ.name} system={organ.system} />
+      <Ecghud organId={organ.id} organName={organ.name} system={organ.system} bpm={bpm} />
 
       <div className="viewer-tools" aria-label="3D viewer tools">
         {tools.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
-            className={`tool-button ${(activeTool === id || showControls && id === "xray" || (!audioMuted && id === "audio") || (cinemaMode && id === "cinema") || (id === "compare" && compare)) ? "active" : ""}`}
+            className={`tool-button ${(activeTool === id || (showControls && id === "xray") || (!audioMuted && id === "audio") || (cinemaMode && id === "cinema") || (id === "compare" && compare)) ? "active" : ""}`}
             onClick={() => handleTool(id)}
             aria-pressed={activeTool === id || (id === "compare" && compare)}
             title={label}
@@ -230,6 +246,17 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
               step="0.05"
               value={dissection}
               onChange={(e) => handleDissectionChange(parseFloat(e.target.value))}
+            />
+          </div>
+          <div className="panel-row">
+            <label><ScanLine size={14} /> Cross-Section Slicing: <strong>{sectionDepth.toFixed(1)}</strong></label>
+            <input
+              type="range"
+              min="-1.8"
+              max="1.8"
+              step="0.1"
+              value={sectionDepth}
+              onChange={(e) => handleSectionDepthChange(parseFloat(e.target.value))}
             />
           </div>
           <div className="panel-row">
@@ -287,4 +314,3 @@ export function OrganViewer({ organ, autoRotate, onAutoRotate, compare, onCompar
     </section>
   );
 }
-

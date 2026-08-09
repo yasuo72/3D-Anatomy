@@ -34,7 +34,7 @@ export class AnatomyViewer {
   private contactShadow!: THREE.Mesh;
 
   private frame = 0;
-  private clock = new THREE.Clock();
+  private lastTime = performance.now();
   private resizeObserver: ResizeObserver;
   private intersectionObserver: IntersectionObserver;
   private clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
@@ -85,7 +85,9 @@ export class AnatomyViewer {
       powerPreference: "high-performance",
       stencil: false,
       depth: true,
+      precision: "highp",
     });
+    this.renderer.debug.checkShaderErrors = false;
     this.renderer.setPixelRatio(this.basePixelRatio);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -382,8 +384,9 @@ export class AnatomyViewer {
     this.frame = requestAnimationFrame(this.animate);
     if (!this.isVisible || !this.isPageVisible) return;
 
-    const delta = Math.min(this.clock.getDelta(), 0.05);
     const now = performance.now();
+    const delta = Math.min((now - this.lastTime) / 1000, 0.05);
+    this.lastTime = now;
 
     this.applyAutoRotate(now);
     if (this.controls.update(delta)) this.dirty = true;
@@ -419,7 +422,7 @@ export class AnatomyViewer {
   private onVisibilityChange = () => {
     this.isPageVisible = !document.hidden;
     if (this.isPageVisible) {
-      this.clock.start();
+      this.lastTime = performance.now();
       this.dirty = true;
     }
   };
@@ -574,6 +577,15 @@ export class AnatomyViewer {
     return this.crossSection;
   }
 
+  setCrossSectionDepth(depth: number) {
+    this.clipPlane.constant = depth;
+    if (!this.crossSection) {
+      this.crossSection = true;
+      this.applyClipping(true);
+    }
+    this.dirty = true;
+  }
+
   private applyClipping(enabled: boolean) {
     if (!this.organ) return;
     const planes = enabled ? [this.clipPlane] : null;
@@ -654,6 +666,51 @@ export class AnatomyViewer {
     });
     this.dirty = true;
     return enabled;
+  }
+
+  flyTo(pos: [number, number, number]) {
+    const targetPos = new THREE.Vector3(pos[0] * 1.5, pos[1] * 1.5 + 0.5, pos[2] * 1.5 + 2.5);
+    this.tween(this.camera.position, {
+      x: targetPos.x,
+      y: targetPos.y,
+      z: targetPos.z,
+      duration: 1.2,
+      ease: "power2.out",
+    });
+  }
+
+  setDiseaseMode(enabled: boolean) {
+    if (!this.organ) return;
+    this.organ.root.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh) {
+        const mesh = node as THREE.Mesh;
+        if (enabled) {
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((m) => {
+              if ("color" in m) (m as any).color.setHex(0x8b2222);
+            });
+          } else if (mesh.material && "color" in mesh.material) {
+            (mesh.material as any).color.setHex(0x8b2222);
+          }
+        } else {
+          // Reset to white/natural tint
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((m) => {
+              if ("color" in m) (m as any).color.setHex(0xffffff);
+            });
+          } else if (mesh.material && "color" in mesh.material) {
+            (mesh.material as any).color.setHex(0xffffff);
+          }
+        }
+      }
+    });
+    this.dirty = true;
+  }
+
+  measureDistance(p1: [number, number, number], p2: [number, number, number]): number {
+    const v1 = new THREE.Vector3(...p1);
+    const v2 = new THREE.Vector3(...p2);
+    return Math.round(v1.distanceTo(v2) * 10) / 10; // in cm
   }
 
   dispose() {
